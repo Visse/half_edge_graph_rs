@@ -1,10 +1,9 @@
-#![allow(unused)]
-
-use slotmap::Key;
-
 use super::{
-    iterators::{EdgeFaces, VertexEdges, VertexFaces, VertexInHalfEdges, VertexOutHalfEdges, FaceVertices, FaceEdges, FaceFaces, VertexVertex},
-    Data, EdgeHandle, FaceHandle, HalfEdgeHandle, HalfEdgeGraph, VertexHandle,
+    iterators::{
+        EdgeFaces, FaceEdges, FaceFaces, FaceVertices, VertexEdges, VertexFaces, VertexInHalfEdges,
+        VertexOutHalfEdges, VertexVertex,
+    },
+    Data, EdgeHandle, FaceHandle, HalfEdgeGraph, HalfEdgeHandle, VertexHandle,
 };
 
 macro_rules! impl_fn {

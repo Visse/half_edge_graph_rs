@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 type HalfEdgeGraph = super::HalfEdgeGraph<()>;
 use itertools::Itertools;
 
@@ -197,7 +195,6 @@ fn check_mesh(
             assert!(vertices.remove(&vertex.handle()));
         }
         assert!(vertices.is_empty());
-
 
         let mut edges: HashSet<_> = vertex_edges[&vertex.handle()].iter().collect();
         for edge in vertex.edges() {
@@ -403,7 +400,6 @@ fn mesh_1() {
     );
 }
 
-
 macro_rules! test_mesh {
     (fn $name:ident() {
         $($props:tt)+
@@ -430,7 +426,7 @@ macro_rules! test_mesh {
 
     (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident) ) => {};
 
-    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident) 
+    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident)
         vertex $name:ident; $($rest:tt)*
     ) => {
         println!(stringify!(Creating vertex  $name));
@@ -441,7 +437,7 @@ macro_rules! test_mesh {
         test_mesh!(__impl($mesh, $vertices, $edges, $faces) $($rest)*);
     };
 
-    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident) 
+    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident)
         edge $name:ident ($v1:ident -> $v2:ident); $($rest:tt)*
     ) => {
         println!(stringify!(Creating edge  $name  ($v1 -> $v2)));
@@ -451,7 +447,7 @@ macro_rules! test_mesh {
         tes
         t_mesh!(__impl($mesh, $vertices, $edges, $faces) $($rest)*);
     };
-    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident) 
+    (__impl($mesh:ident, $vertices:ident, $edges:ident, $faces:ident)
         face $name:ident ($($v:ident) -> +); $($rest:tt)*
     ) => {
         println!(stringify!(Creating face  $name  ( $($v) -> + )));
@@ -470,7 +466,6 @@ macro_rules! test_mesh {
         test_mesh!(__impl($mesh, $vertices, $edges, $faces) $($rest)*);
     };
 }
-
 
 test_mesh! {
     fn mesh_grid() {
@@ -491,8 +486,6 @@ test_mesh! {
         face f4 (v1 -> v4 -> v7 -> v8 -> v9 -> v6 -> v3 -> v2);
     }
 }
-
-
 
 test_mesh! {
     fn mesh_hexagon() {

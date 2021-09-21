@@ -1,17 +1,15 @@
+mod accessors;
 mod function_set;
 mod iterators;
-mod accessors;
 
 use std::fmt::Debug;
 
 use itertools::Itertools;
 use slotmap::Key;
 
-pub use function_set::{
-    VertexFn, EdgeFn, HalfEdgeFn, FaceFn
-};
+pub use function_set::{EdgeFn, FaceFn, HalfEdgeFn, VertexFn};
 
-// #[cfg(test)]
+#[cfg(test)]
 mod test;
 
 slotmap::new_key_type!(
@@ -23,7 +21,7 @@ slotmap::new_key_type!(
 
 impl FaceHandle {
     pub fn is_null(&self) -> bool {
-        <Self as Key>::is_null(&self)
+        <Self as Key>::is_null(self)
     }
     pub fn null() -> Self {
         <Self as Key>::null()
@@ -31,7 +29,7 @@ impl FaceHandle {
 }
 impl EdgeHandle {
     pub fn is_null(&self) -> bool {
-        <Self as Key>::is_null(&self)
+        <Self as Key>::is_null(self)
     }
     pub fn null() -> Self {
         <Self as Key>::null()
@@ -39,7 +37,7 @@ impl EdgeHandle {
 }
 impl HalfEdgeHandle {
     pub fn is_null(&self) -> bool {
-        <Self as Key>::is_null(&self)
+        <Self as Key>::is_null(self)
     }
     pub fn null() -> Self {
         <Self as Key>::null()
@@ -47,15 +45,12 @@ impl HalfEdgeHandle {
 }
 impl VertexHandle {
     pub fn is_null(&self) -> bool {
-        <Self as Key>::is_null(&self)
+        <Self as Key>::is_null(self)
     }
     pub fn null() -> Self {
         <Self as Key>::null()
     }
 }
-
-
-
 
 pub trait Data {
     type Face: Default;
@@ -139,12 +134,14 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         let v1_insertion = vertex_1
             .hedge()
             .map(|h| self.find_free_half_edge(h.handle()).ok_or(()))
-            .transpose().ok()?;
+            .transpose()
+            .ok()?;
 
         let v2_insertion = vertex_2
             .hedge()
             .map(|h| self.find_free_half_edge(h.handle()).ok_or(()))
-            .transpose().ok()?;
+            .transpose()
+            .ok()?;
 
         let e = self.edges.insert(Default::default());
         let h1 = self.half_edges.insert(Default::default());
@@ -220,9 +217,7 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         for (v1, v2) in v.iter().circular_tuple_windows() {
             hedges.push(self.find_or_create_half_edge(*v1, *v2)?);
 
-            debug_assert!(
-                self.half_edges[*hedges.last().unwrap()].vertex == *v2
-            );
+            debug_assert!(self.half_edges[*hedges.last().unwrap()].vertex == *v2);
         }
 
         for hedge in &hedges {
@@ -302,7 +297,10 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         after: HalfEdgeHandle,
         before: HalfEdgeHandle,
     ) -> Option<HalfEdgeHandle> {
-        debug_assert_eq!(self.half_edges[before].vertex, self.half_edges[after].vertex);
+        debug_assert_eq!(
+            self.half_edges[before].vertex,
+            self.half_edges[after].vertex
+        );
 
         let mut current = self.half_edge(after).unwrap();
         loop {

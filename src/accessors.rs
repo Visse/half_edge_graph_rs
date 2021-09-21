@@ -1,51 +1,37 @@
-
 use super::{
-    Data,
-    HalfEdgeGraph,
-    VertexHandle,
-    EdgeHandle,
-    FaceHandle,
-    HalfEdgeHandle,
-    VertexFn,
-    HalfEdgeFn,
-    EdgeFn,
-    FaceFn,
+    Data, EdgeFn, EdgeHandle, FaceFn, FaceHandle, HalfEdgeFn, HalfEdgeGraph, HalfEdgeHandle,
+    VertexFn, VertexHandle,
 };
-
 
 impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
     pub fn vertex(&self, handle: VertexHandle) -> Option<VertexFn<DataTypes>> {
         if self.vertices.contains_key(handle) {
-            Some(VertexFn::new(&self, handle))
-        }
-        else {
+            Some(VertexFn::new(self, handle))
+        } else {
             None
         }
     }
 
     pub fn half_edge(&self, handle: HalfEdgeHandle) -> Option<HalfEdgeFn<DataTypes>> {
         if self.half_edges.contains_key(handle) {
-            Some(HalfEdgeFn::new(&self, handle))
-        }
-        else {
+            Some(HalfEdgeFn::new(self, handle))
+        } else {
             None
         }
     }
 
     pub fn edge(&self, handle: EdgeHandle) -> Option<EdgeFn<DataTypes>> {
         if self.edges.contains_key(handle) {
-            Some(EdgeFn::new(&self, handle))
-        }
-        else {
+            Some(EdgeFn::new(self, handle))
+        } else {
             None
         }
     }
 
     pub fn face(&self, handle: FaceHandle) -> Option<FaceFn<DataTypes>> {
         if self.faces.contains_key(handle) {
-            Some(FaceFn::new(&self, handle))
-        }
-        else {
+            Some(FaceFn::new(self, handle))
+        } else {
             None
         }
     }
@@ -70,7 +56,10 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         self.vertices.get_mut(handle).map(|v| &mut v.data)
     }
 
-    pub fn get_half_edge_data_mut(&mut self, handle: HalfEdgeHandle) -> Option<&mut DataTypes::HalfEdge> {
+    pub fn get_half_edge_data_mut(
+        &mut self,
+        handle: HalfEdgeHandle,
+    ) -> Option<&mut DataTypes::HalfEdge> {
         self.half_edges.get_mut(handle).map(|v| &mut v.data)
     }
 
@@ -114,7 +103,6 @@ impl<DataTypes: Data> std::ops::Index<FaceHandle> for HalfEdgeGraph<DataTypes> {
         &self.faces[index].data
     }
 }
-
 
 impl<DataTypes: Data> std::ops::IndexMut<VertexHandle> for HalfEdgeGraph<DataTypes> {
     fn index_mut(&mut self, index: VertexHandle) -> &mut Self::Output {

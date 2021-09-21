@@ -66,7 +66,6 @@ impl<'graph> VertexFnMut<'graph> {
     }
 }
 
-
 fn main() {
     let mut graph = Graph::default();
 
