@@ -457,3 +457,59 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
             .map(move |handle| HalfEdgeFn::<'iter, DataTypes>::new(self, handle))
     }
 }
+
+impl<DataTypes: Data> std::ops::Index<VertexHandle> for HalfEdgeGraph<DataTypes> {
+    type Output = DataTypes::Vertex;
+
+    fn index(&self, index: VertexHandle) -> &Self::Output {
+        &self.vertices.get(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::IndexMut<VertexHandle> for HalfEdgeGraph<DataTypes> {
+    fn index_mut(&mut self, index: VertexHandle) -> &mut Self::Output {
+        &mut self.vertices.get_mut(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::Index<HalfEdgeHandle> for HalfEdgeGraph<DataTypes> {
+    type Output = DataTypes::HalfEdge;
+
+    fn index(&self, index: HalfEdgeHandle) -> &Self::Output {
+        &self.half_edges.get(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::IndexMut<HalfEdgeHandle> for HalfEdgeGraph<DataTypes> {
+    fn index_mut(&mut self, index: HalfEdgeHandle) -> &mut Self::Output {
+        &mut self.half_edges.get_mut(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::Index<EdgeHandle> for HalfEdgeGraph<DataTypes> {
+    type Output = DataTypes::Edge;
+
+    fn index(&self, index: EdgeHandle) -> &Self::Output {
+        &self.edges.get(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::IndexMut<EdgeHandle> for HalfEdgeGraph<DataTypes> {
+    fn index_mut(&mut self, index: EdgeHandle) -> &mut Self::Output {
+        &mut self.edges.get_mut(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::Index<FaceHandle> for HalfEdgeGraph<DataTypes> {
+    type Output = DataTypes::Face;
+
+    fn index(&self, index: FaceHandle) -> &Self::Output {
+        &self.faces.get(index).unwrap().data
+    }
+}
+
+impl<DataTypes: Data> std::ops::IndexMut<FaceHandle> for HalfEdgeGraph<DataTypes> {
+    fn index_mut(&mut self, index: FaceHandle) -> &mut Self::Output {
+        &mut self.faces.get_mut(index).unwrap().data
+    }
+}
