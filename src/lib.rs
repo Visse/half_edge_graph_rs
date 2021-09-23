@@ -5,7 +5,7 @@ use slotmap::Key;
 
 mod function_set;
 pub use function_set::{
-    EdgeFn, EdgeFnMut, FaceFn, FaceFnMut, HalfEdgeFn, HalfEdgeFnMut, VertexFn, VertexFnMut,
+    EdgeFn, EdgeFnMut, EdgeFnData, FaceFn, FaceFnMut, FaceFnData, HalfEdgeFn, HalfEdgeFnMut, HalfEdgeFnData, VertexFn, VertexFnMut, VertexFnData,
 };
 
 mod iterators;
@@ -417,44 +417,60 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         }
     }
 
-    pub fn iter_vertices<'self_, 'iter>(
-        &'self_ self,
-    ) -> impl Iterator<Item = VertexFn<'iter, DataTypes>>
-    where
-        'self_: 'iter,
+    pub fn iter_vertices(&self) -> impl Iterator<Item = VertexFn<'_, DataTypes>>
     {
         self.vertices
             .keys()
-            .map(move |handle| VertexFn::<'iter, DataTypes>::new(self, handle))
+            .map(move |handle| VertexFn::new(self, handle))
     }
 
-    pub fn iter_edges<'self_, 'iter>(&'self_ self) -> impl Iterator<Item = EdgeFn<'iter, DataTypes>>
-    where
-        'self_: 'iter,
+    pub fn iter_edges(&self) -> impl Iterator<Item = EdgeFn<DataTypes>>
     {
         self.edges
             .keys()
-            .map(move |handle| EdgeFn::<'iter, DataTypes>::new(self, handle))
+            .map(move |handle| EdgeFn::new(self, handle))
     }
 
-    pub fn iter_faces<'self_, 'iter>(&'self_ self) -> impl Iterator<Item = FaceFn<'iter, DataTypes>>
-    where
-        'self_: 'iter,
+    pub fn iter_faces(&self) -> impl Iterator<Item = FaceFn<'_, DataTypes>>
     {
         self.faces
             .keys()
-            .map(move |handle| FaceFn::<'iter, DataTypes>::new(self, handle))
+            .map(move |handle| FaceFn::new(self, handle))
     }
 
-    pub fn iter_half_edges<'self_, 'iter>(
-        &'self_ self,
-    ) -> impl Iterator<Item = HalfEdgeFn<'iter, DataTypes>>
-    where
-        'self_: 'iter,
+    pub fn iter_half_edges(&self) -> impl Iterator<Item = HalfEdgeFn<'_, DataTypes>>
     {
         self.half_edges
             .keys()
-            .map(move |handle| HalfEdgeFn::<'iter, DataTypes>::new(self, handle))
+            .map(move |handle| HalfEdgeFn::new(self, handle))
+    }
+
+    pub fn iter_vertices_mut(&mut self) -> impl Iterator<Item = VertexFnData<'_, DataTypes>>
+    {
+        self.vertices
+            .iter_mut()
+            .map(|(handle, data)| VertexFnData::new(data, handle))
+    }
+
+    pub fn iter_edges_mut(&mut self) -> impl Iterator<Item = EdgeFnData<'_, DataTypes>>
+    {
+        self.edges
+            .iter_mut()
+            .map(|(handle, data)| EdgeFnData::new(data, handle))
+    }
+
+    pub fn iter_faces_mut(&mut self) -> impl Iterator<Item = FaceFnData<DataTypes>>
+    {
+        self.faces
+            .iter_mut()
+            .map(|(handle, data)| FaceFnData::new(data, handle))
+    }
+
+    pub fn iter_half_edges_mut(&mut self) -> impl Iterator<Item = HalfEdgeFnData<'_, DataTypes>>
+    {
+        self.half_edges
+            .iter_mut()
+            .map(|(handle, data)| HalfEdgeFnData::new(data, handle))
     }
 }
 

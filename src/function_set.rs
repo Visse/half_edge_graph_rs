@@ -14,6 +14,9 @@ macro_rules! fn_type {
         $(#[$meta_mut:meta])*
         struct $name_mut:ident;
 
+        $(#[$meta_data:meta])*
+        struct $name_data:ident;
+
         handle: $handle:ty;
         type: $type:ident;
         map: $map:ident;
@@ -47,7 +50,7 @@ macro_rules! fn_type {
                 &self.graph.$map.get(self.handle).unwrap()
             }
 
-            fn_type!(__impl_props $name; $($rest)*);
+            fn_type!(__impl_props $name 'graph; $($rest)*);
         }
         fn_type!(__impl_common $name; handle: $handle; type: $type;);
 
@@ -92,15 +95,46 @@ macro_rules! fn_type {
                 self.graph.$map.get_mut(self.handle).unwrap()
             }
 
+            fn_type!(__impl_props $name '_; $($rest)*);
             fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
         }
         fn_type!(__impl_common_mut $name_mut; handle: $handle; type: $type;);
 
-        impl<'graph, DataTypes: Data>  From<$name_mut<'graph, DataTypes>> for $name<'graph, DataTypes> {
+        impl<'graph, DataTypes: Data> From<$name_mut<'graph, DataTypes>> for $name<'graph, DataTypes> {
             fn from(item: $name_mut<'graph, DataTypes>) -> Self {
                 Self::new(item.graph, item.handle)
             }
         }
+
+        $(#[$meta_data])*
+        pub struct $name_data<'graph, DataTypes: Data> {
+            pub(crate) data: &'graph mut $type<DataTypes::$type>,
+            pub(crate) handle: $handle,
+        }
+
+        impl<'graph, DataTypes: Data> $name_data<'graph, DataTypes>
+        {
+            pub(crate) fn new(data: &'graph mut $type<DataTypes::$type>, handle: $handle) -> Self {
+                Self {
+                    data,
+                    handle
+                }
+            }
+
+            pub fn handle(&self) -> $handle {
+                self.handle
+            }
+
+            fn get(&self) -> &$type<DataTypes::$type> {
+                self.data
+            }
+
+            fn get_mut(&mut self) -> &mut $type<DataTypes::$type> {
+                self.data
+            }
+        }
+
+        fn_type!(__impl_common_mut $name_data; handle: $handle; type: $type;);
     };
 
     (
@@ -154,27 +188,27 @@ macro_rules! fn_type {
      **************************/
 
     ( // No more properties
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
     ) => {};
 
     ( // Property
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         $prop:ident(&self) -> $type:ident;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> $type<'graph, DataTypes> {
+        pub fn $prop(&self) -> $type<$lifetime, DataTypes> {
             $type::new(self.graph, Self::get(self).$prop)
         }
 
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
 
     ( // Optional property
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         $prop:ident(&self) -> Option<$type:ident>;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> Option<$type<'graph, DataTypes>> {
+        pub fn $prop(&self) -> Option<$type<$lifetime, DataTypes>> {
             let prop = Self::get(self).$prop;
             if prop.is_null() {
                 None
@@ -185,41 +219,41 @@ macro_rules! fn_type {
 
         }
 
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
     ( // Function
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         fn $fun:ident(&self) -> $ret:ident;
         $($rest:tt)*
     ) => {
-        pub fn $fun(&self) -> $ret<'graph, DataTypes> {
+        pub fn $fun(&self) -> $ret<$lifetime, DataTypes> {
             // FIXME
-            $ret::new(Self::new(self.graph, self.handle))
+            $ret::new($name::new(self.graph, self.handle))
         }
 
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
 
     ( // Mutable property -- Ignore (not mutable type)
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> $type:ident;
         $($rest:tt)*
     ) => {
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
     ( // Mutable optional property -- Ignore (not mutable type)
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> Option<$type:ident>;
         $($rest:tt)*
     ) => {
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
     ( // Mutable function -- Ignore (not mutable type)
-        __impl_props $name:ident;
+        __impl_props $name:ident $lifetime:lifetime;
         fn $prop:ident(&mut self) -> $ret:ty;
         $($rest:tt)*
     ) => {
-        fn_type!(__impl_props $name; $($rest)*);
+        fn_type!(__impl_props $name $lifetime; $($rest)*);
     };
 
     /**************************
@@ -234,10 +268,6 @@ macro_rules! fn_type {
         $prop:ident(&self) -> $type:ident;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> $type<'_, DataTypes> {
-            $type::new(self.graph, Self::get(self).$prop)
-        }
-
         fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
     };
 
@@ -246,16 +276,6 @@ macro_rules! fn_type {
         $prop:ident(&self) -> Option<$type:ident>;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> Option<$type<'_, DataTypes>> {
-            let prop = Self::get(self).$prop;
-            if prop.is_null() {
-                None
-            }
-            else {
-                Some($type::new(self.graph, prop))
-            }
-        }
-
         fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
     };
 
@@ -308,10 +328,6 @@ macro_rules! fn_type {
         fn $fun:ident(&self) -> $ret:ident;
         $($rest:tt)*
     ) => {
-        pub fn $fun(&self) -> $ret<DataTypes> {
-            $ret::new($name::new(self.graph, self.handle).into())
-        }
-
         fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
     };
 
@@ -330,6 +346,7 @@ macro_rules! fn_type {
 fn_type!(
     struct HalfEdgeFn;
     struct HalfEdgeFnMut;
+    struct HalfEdgeFnData;
 
     handle: HalfEdgeHandle;
     type: HalfEdge;
@@ -357,6 +374,7 @@ fn_type!(
 fn_type!(
     struct VertexFn;
     struct VertexFnMut;
+    struct VertexFnData;
 
     handle: VertexHandle;
     type: Vertex;
@@ -384,6 +402,7 @@ fn_type!(
 fn_type!(
     struct EdgeFn;
     struct EdgeFnMut;
+    struct EdgeFnData;
 
     handle: EdgeHandle;
     type: Edge;
@@ -417,6 +436,7 @@ impl<'graph, DataTypes: Data> EdgeFn<'graph, DataTypes> {
 fn_type!(
     struct FaceFn;
     struct FaceFnMut;
+    struct FaceFnData;
 
     handle: FaceHandle;
     type: Face;
