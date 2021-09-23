@@ -1,13 +1,19 @@
-mod accessors;
-mod function_set;
-mod iterators;
-
 use std::fmt::Debug;
 
 use itertools::Itertools;
 use slotmap::Key;
 
-pub use function_set::{EdgeFn, FaceFn, HalfEdgeFn, VertexFn};
+mod function_set;
+pub use function_set::{
+    EdgeFn, EdgeFnMut, FaceFn, FaceFnMut, HalfEdgeFn, HalfEdgeFnMut, VertexFn, VertexFnMut,
+};
+
+mod iterators;
+pub use iterators::{
+    EdgeFaces, EdgeFacesMut, FaceEdges, FaceEdgesMut, FaceFaces, FaceFacesMut, FaceVertices,
+    FaceVerticesMut, VertexEdges, VertexEdgesMut, VertexFaces, VertexFacesMut, VertexInHalfEdges,
+    VertexInHalfEdgesMut, VertexOutHalfEdges, VertexOutHalfEdgesMut, VertexVertex, VertexVertexMut,
+};
 
 #[cfg(test)]
 mod test;
@@ -342,5 +348,112 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         self.half_edges[free_in_next].prev = out_prev;
 
         Some(())
+    }
+
+    pub fn vertex(&self, handle: VertexHandle) -> Option<VertexFn<'_, DataTypes>> {
+        if self.vertices.contains_key(handle) {
+            Some(VertexFn::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn vertex_mut(&mut self, handle: VertexHandle) -> Option<VertexFnMut<'_, DataTypes>> {
+        if self.vertices.contains_key(handle) {
+            Some(VertexFnMut::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn half_edge(&self, handle: HalfEdgeHandle) -> Option<HalfEdgeFn<'_, DataTypes>> {
+        if self.half_edges.contains_key(handle) {
+            Some(HalfEdgeFn::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn half_edge_mut(
+        &mut self,
+        handle: HalfEdgeHandle,
+    ) -> Option<HalfEdgeFnMut<'_, DataTypes>> {
+        if self.half_edges.contains_key(handle) {
+            Some(HalfEdgeFnMut::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn edge(&self, handle: EdgeHandle) -> Option<EdgeFn<'_, DataTypes>> {
+        if self.edges.contains_key(handle) {
+            Some(EdgeFn::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn edge_mut(&mut self, handle: EdgeHandle) -> Option<EdgeFnMut<'_, DataTypes>> {
+        if self.edges.contains_key(handle) {
+            Some(EdgeFnMut::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn face(&self, handle: FaceHandle) -> Option<FaceFn<'_, DataTypes>> {
+        if self.faces.contains_key(handle) {
+            Some(FaceFn::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn face_mut(&mut self, handle: FaceHandle) -> Option<FaceFnMut<'_, DataTypes>> {
+        if self.faces.contains_key(handle) {
+            Some(FaceFnMut::new(self, handle))
+        } else {
+            None
+        }
+    }
+
+    pub fn iter_vertices<'self_, 'iter>(
+        &'self_ self,
+    ) -> impl Iterator<Item = VertexFn<'iter, DataTypes>>
+    where
+        'self_: 'iter,
+    {
+        self.vertices
+            .keys()
+            .map(move |handle| VertexFn::<'iter, DataTypes>::new(self, handle))
+    }
+
+    pub fn iter_edges<'self_, 'iter>(&'self_ self) -> impl Iterator<Item = EdgeFn<'iter, DataTypes>>
+    where
+        'self_: 'iter,
+    {
+        self.edges
+            .keys()
+            .map(move |handle| EdgeFn::<'iter, DataTypes>::new(self, handle))
+    }
+
+    pub fn iter_faces<'self_, 'iter>(&'self_ self) -> impl Iterator<Item = FaceFn<'iter, DataTypes>>
+    where
+        'self_: 'iter,
+    {
+        self.faces
+            .keys()
+            .map(move |handle| FaceFn::<'iter, DataTypes>::new(self, handle))
+    }
+
+    pub fn iter_half_edges<'self_, 'iter>(
+        &'self_ self,
+    ) -> impl Iterator<Item = HalfEdgeFn<'iter, DataTypes>>
+    where
+        'self_: 'iter,
+    {
+        self.half_edges
+            .keys()
+            .map(move |handle| HalfEdgeFn::<'iter, DataTypes>::new(self, handle))
     }
 }

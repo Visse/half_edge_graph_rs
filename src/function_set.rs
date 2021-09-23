@@ -1,63 +1,39 @@
-use super::{
-    iterators::{
-        EdgeFaces, FaceEdges, FaceFaces, FaceVertices, VertexEdges, VertexFaces, VertexInHalfEdges,
-        VertexOutHalfEdges, VertexVertex,
-    },
-    Data, EdgeHandle, FaceHandle, HalfEdgeGraph, HalfEdgeHandle, VertexHandle,
+use crate::{
+    Data, Edge, EdgeFaces, EdgeFacesMut, EdgeHandle, Face, FaceEdges, FaceEdgesMut, FaceFaces,
+    FaceFacesMut, FaceHandle, FaceVertices, FaceVerticesMut, HalfEdge, HalfEdgeGraph,
+    HalfEdgeHandle, Vertex, VertexEdges, VertexEdgesMut, VertexFaces, VertexFacesMut, VertexHandle,
+    VertexInHalfEdges, VertexInHalfEdgesMut, VertexOutHalfEdges, VertexOutHalfEdgesMut,
+    VertexVertex, VertexVertexMut,
 };
 
-macro_rules! impl_fn {
+macro_rules! fn_type {
     (
-        struct $name:ident ($handle:ty, $data:ident, $map:ident) {
-            $($props:tt)+
-        }
+        $(#[$meta:meta])*
+        struct $name:ident;
+
+        $(#[$meta_mut:meta])*
+        struct $name_mut:ident;
+
+        handle: $handle:ty;
+        type: $type:ident;
+        map: $map:ident;
+
+        $($rest:tt)*
     ) => {
-        pub struct $name<'mesh, DataTypes: Data> {
-            mesh: &'mesh HalfEdgeGraph<DataTypes>,
-            handle: $handle,
-        }
-        impl<'mesh, DataTypes: Data> Clone for $name<'mesh, DataTypes> {
-            fn clone(&self) -> Self {
-                Self {
-                    mesh: self.mesh,
-                    handle: self.handle
-                }
-            }
-        }
-        impl<'mesh, DataTypes: Data> Copy for $name<'mesh, DataTypes> {}
-
-        impl<'mesh, DataTypes: Data> std::cmp::PartialEq<Self> for $name<'mesh, DataTypes> {
-            fn eq(&self, other: &Self) -> bool {
-                self.handle == other.handle
-            }
-        }
-        impl<'mesh, DataTypes: Data> std::cmp::PartialEq<$handle> for $name<'mesh, DataTypes> {
-            fn eq(&self, other: &$handle) -> bool {
-                self.handle == *other
-            }
-        }
-        impl<'mesh, DataTypes: Data> std::cmp::PartialEq<$name<'mesh, DataTypes>> for $handle {
-            fn eq(&self, other: &$name<'mesh, DataTypes>) -> bool {
-                self == &other.handle
-            }
+        $(#[$meta])*
+        pub struct $name<'graph, DataTypes: Data> {
+            pub(crate) graph: &'graph HalfEdgeGraph<DataTypes>,
+            pub(crate) handle: $handle,
         }
 
-
-        impl<'mesh, DataTypes: Data> std::ops::Deref for $name<'mesh, DataTypes> {
-            type Target = DataTypes::$data;
-
-            fn deref(&self) -> &Self::Target {
-                $name::data(self)
-            }
-        }
-
-        impl<'mesh, DataTypes: Data> $name<'mesh, DataTypes> {
-            pub fn new(mesh: &'mesh HalfEdgeGraph<DataTypes>, handle: $handle) -> Self {
-                debug_assert!(mesh.$map.contains_key(handle));
+        impl<'graph, DataTypes: Data> $name<'graph, DataTypes>
+        {
+            pub(crate) fn new(graph: &'graph HalfEdgeGraph<DataTypes>, handle: $handle) -> Self {
+                debug_assert!(graph.$map.contains_key(handle));
 
                 Self {
-                    mesh,
-                    handle,
+                    graph,
+                    handle
                 }
             }
 
@@ -65,158 +41,396 @@ macro_rules! impl_fn {
                 self.handle
             }
 
-            pub fn mesh(&self) -> &'mesh HalfEdgeGraph<DataTypes> {
-                self.mesh
+            fn get(&self) -> &$type<DataTypes::$type> {
+                // @todo investigate if get_unchecked is worth it
+                //  (self.handle _should_ always be valid)
+                &self.graph.$map.get(self.handle).unwrap()
             }
 
-            pub fn data(&self) -> &DataTypes::$data {
-                &self.mesh.$map[self.handle].data
-            }
+            fn_type!(__impl_props $name; $($rest)*);
+        }
+        fn_type!(__impl_common $name; handle: $handle; type: $type;);
 
-            impl_fn! {
-                __props ($map) {
-                    $($props)+
+
+        impl<'graph, DataTypes: Data> std::cmp::PartialEq<$name<'graph, DataTypes>> for $name<'graph, DataTypes> {
+            fn eq(&self, other: &Self) -> bool {
+                self.handle == other.handle
+            }
+        }
+
+
+        $(#[$meta_mut])*
+        pub struct $name_mut<'graph, DataTypes: Data> {
+            pub(crate) graph: &'graph mut HalfEdgeGraph<DataTypes>,
+            pub(crate) handle: $handle,
+        }
+
+        impl<'graph, DataTypes: Data> $name_mut<'graph, DataTypes>
+        {
+            pub(crate) fn new(graph: &'graph mut HalfEdgeGraph<DataTypes>, handle: $handle) -> Self {
+                debug_assert!(graph.$map.contains_key(handle));
+
+                Self {
+                    graph,
+                    handle
                 }
             }
-        }
 
-        impl<'mesh, DataTypes: Data> std::fmt::Debug for $name<'mesh, DataTypes> {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                self.handle.fmt(f)
+            pub fn handle(&self) -> $handle {
+                self.handle
+            }
+
+            fn get(&self) -> &$type<DataTypes::$type> {
+                // @todo investigate if get_mut is worth it
+                //  (self.handle _should_ always be valid)
+                self.graph.$map.get(self.handle).unwrap()
+            }
+
+            fn get_mut(&mut self) -> &mut $type<DataTypes::$type> {
+                // @todo investigate if get_unchecked_mut is worth it
+                //  (self.handle _should_ always be valid)
+                self.graph.$map.get_mut(self.handle).unwrap()
+            }
+
+            fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+        }
+        fn_type!(__impl_common_mut $name_mut; handle: $handle; type: $type;);
+
+        impl<'graph, DataTypes: Data>  From<$name_mut<'graph, DataTypes>> for $name<'graph, DataTypes> {
+            fn from(item: $name_mut<'graph, DataTypes>) -> Self {
+                Self::new(item.graph, item.handle)
             }
         }
     };
 
     (
-        __props ($map:ident) {}
+        __impl_common $name:ident;
+        handle: $handle:ty;
+        type: $type:ident;
+    ) => {
+        impl<'graph, DataTypes: Data> std::fmt::Debug for $name<'graph, DataTypes> {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.debug_tuple(stringify!($name)).field(&self.handle.0).finish()
+            }
+        }
+
+        impl<'graph, DataTypes: Data> std::cmp::PartialEq<$handle> for $name<'graph, DataTypes> {
+            fn eq(&self, other: &$handle) -> bool {
+                self.handle == *other
+            }
+        }
+
+        impl<'graph, DataTypes: Data> std::cmp::PartialEq<$name<'graph, DataTypes>> for $handle {
+            fn eq(&self, other: &$name<'graph, DataTypes>) -> bool {
+                *self == other.handle
+            }
+        }
+
+        impl<'graph, DataTypes: Data> std::ops::Deref for $name<'graph, DataTypes> {
+            type Target = DataTypes::$type;
+
+            fn deref(&self) -> &Self::Target {
+                &Self::get(self).data
+            }
+        }
+    };
+
+    (
+        __impl_common_mut $name:ident;
+        handle: $handle:ty;
+        type: $type:ident;
+    ) => {
+        fn_type!(__impl_common $name; handle: $handle; type: $type;);
+
+        impl<'graph, DataTypes: Data> std::ops::DerefMut for $name<'graph, DataTypes> {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut Self::get_mut(self).data
+            }
+        }
+    };
+
+    /**************************
+     * Properties             *
+     **************************/
+
+    ( // No more properties
+        __impl_props $name:ident;
     ) => {};
 
-    (
-        __props ($map:ident) {
-            $prop:ident : $type:ident,
-            $($rest:tt)*
-        }
+    ( // Property
+        __impl_props $name:ident;
+        $prop:ident(&self) -> $type:ident;
+        $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> $type<'mesh, DataTypes> {
-            let info = &self.mesh.$map[self.handle];
-            let prop = info.$prop;
-
-            $type::new(self.mesh, prop)
+        pub fn $prop(&self) -> $type<'graph, DataTypes> {
+            $type::new(self.graph, Self::get(self).$prop)
         }
 
-        impl_fn! {
-            __props ($map) {
-                $($rest)*
-            }
-        }
+        fn_type!(__impl_props $name; $($rest)*);
     };
 
-    (
-        __props ($map:ident) {
-            $prop:ident : Option<$type:ident>,
-            $($rest:tt)*
-        }
+    ( // Optional property
+        __impl_props $name:ident;
+        $prop:ident(&self) -> Option<$type:ident>;
+        $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> Option<$type<'mesh, DataTypes>> {
-            let info = &self.mesh.$map[self.handle];
-            let prop = info.$prop;
-
+        pub fn $prop(&self) -> Option<$type<'graph, DataTypes>> {
+            let prop = Self::get(self).$prop;
             if prop.is_null() {
                 None
             }
             else {
-                Some($type::new(self.mesh, prop))
+                Some($type::new(self.graph, prop))
             }
+
         }
 
-        impl_fn! {
-            __props ($map) {
-                $($rest)*
-            }
+        fn_type!(__impl_props $name; $($rest)*);
+    };
+    ( // Function
+        __impl_props $name:ident;
+        fn $fun:ident(&self) -> $ret:ident;
+        $($rest:tt)*
+    ) => {
+        pub fn $fun(&self) -> $ret<'graph, DataTypes> {
+            // FIXME
+            $ret::new(Self::new(self.graph, self.handle))
         }
+
+        fn_type!(__impl_props $name; $($rest)*);
     };
 
-    (
-        __props ($map:ident) {
-            $prop:ident -> $iter:ident,
-            $($rest:tt)*
-        }
+    ( // Mutable property -- Ignore (not mutable type)
+        __impl_props $name:ident;
+        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> $type:ident;
+        $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> $iter<DataTypes> {
-            $iter::new(*self)
-        }
-
-        impl_fn! {
-            __props ($map) {
-                $($rest)*
-            }
-        }
-    };    (
-
-    __props ($map:ident) {
-            pub fn $prop:ident(&$self:ident) -> $result:ty {
-                $($fn:tt)+
-            }
-            $($rest:tt)*
-        }
+        fn_type!(__impl_props $name; $($rest)*);
+    };
+    ( // Mutable optional property -- Ignore (not mutable type)
+        __impl_props $name:ident;
+        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> Option<$type:ident>;
+        $($rest:tt)*
     ) => {
-        pub fn $prop(&$self) -> $result {
-            $($fn)+
+        fn_type!(__impl_props $name; $($rest)*);
+    };
+    ( // Mutable function -- Ignore (not mutable type)
+        __impl_props $name:ident;
+        fn $prop:ident(&mut self) -> $ret:ty;
+        $($rest:tt)*
+    ) => {
+        fn_type!(__impl_props $name; $($rest)*);
+    };
+
+    /**************************
+     * Mutable properies      *
+     **************************/
+    ( // No more properties
+        __impl_props_mut $name:ident:$name_mut:ident;
+    ) => {};
+
+    ( // Property
+        __impl_props_mut $name:ident:$name_mut:ident;
+        $prop:ident(&self) -> $type:ident;
+        $($rest:tt)*
+    ) => {
+        pub fn $prop(&self) -> $type<'_, DataTypes> {
+            $type::new(self.graph, Self::get(self).$prop)
         }
 
-        impl_fn! {
-            __props ($map) {
-                $($rest)*
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+    };
+
+    ( // Optional property
+        __impl_props_mut $name:ident:$name_mut:ident;
+        $prop:ident(&self) -> Option<$type:ident>;
+        $($rest:tt)*
+    ) => {
+        pub fn $prop(&self) -> Option<$type<'_, DataTypes>> {
+            let prop = Self::get(self).$prop;
+            if prop.is_null() {
+                None
+            }
+            else {
+                Some($type::new(self.graph, prop))
             }
         }
+
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+    };
+
+    ( // Mutable property
+        __impl_props_mut $name:ident:$name_mut:ident;
+        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> $type:ident;
+        $($rest:tt)*
+    ) => {
+        pub fn $fun(&mut self) -> $type<'_, DataTypes> {
+            $type::new(self.graph, Self::get(self).$prop)
+        }
+
+        pub fn $fun_as(self) -> $type<'graph, DataTypes> {
+            $type::new(self.graph, Self::get(&self).$prop)
+        }
+
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+    };
+
+    ( // Mutable optional property
+        __impl_props_mut $name:ident:$name_mut:ident;
+        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> Option<$type:ident>;
+        $($rest:tt)*
+    ) => {
+        pub fn $fun(&mut self) -> Option<$type<'_, DataTypes>> {
+            let prop = Self::get(self).$prop;
+            if prop.is_null() {
+                None
+            }
+            else {
+                Some($type::new(self.graph, prop))
+            }
+        }
+
+        pub fn $fun_as(self) -> Option<$type<'graph, DataTypes>> {
+            let prop = Self::get(&self).$prop;
+            if prop.is_null() {
+                None
+            }
+            else {
+                Some($type::new(self.graph, prop))
+            }
+        }
+
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+    };
+
+    ( // Function
+        __impl_props_mut $name:ident:$name_mut:ident;
+        fn $fun:ident(&self) -> $ret:ident;
+        $($rest:tt)*
+    ) => {
+        pub fn $fun(&self) -> $ret<DataTypes> {
+            $ret::new($name::new(self.graph, self.handle).into())
+        }
+
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
+    };
+
+    ( // Mutable function
+        __impl_props_mut $name:ident:$name_mut:ident;
+        fn $fun:ident(&mut self) -> $ret:ident;
+        $($rest:tt)*
+    ) => {
+        pub fn $fun(&mut self) -> $ret<DataTypes> {
+            $ret::new($name_mut::new(self.graph, self.handle))
+        }
+        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
     };
 }
 
-impl_fn!(
-    struct HalfEdgeFn (HalfEdgeHandle, HalfEdge, half_edges) {
-        pair: HalfEdgeFn,
-        next: HalfEdgeFn,
-        prev: HalfEdgeFn,
+fn_type!(
+    struct HalfEdgeFn;
+    struct HalfEdgeFnMut;
 
-        face: Option<FaceFn>,
-        vertex: VertexFn,
-        edge: EdgeFn,
-    }
+    handle: HalfEdgeHandle;
+    type: HalfEdge;
+    map: half_edges;
+
+    pair(&self) -> HalfEdgeFn;
+    pair_mut:as_pair:pair(&mut self) -> HalfEdgeFnMut;
+
+    next(&self) -> HalfEdgeFn;
+    next_mut:as_next:next(&mut self) -> HalfEdgeFnMut;
+
+    prev(&self) -> HalfEdgeFn;
+    prev_mut:as_prev:prev(&mut self) -> HalfEdgeFnMut;
+
+    vertex(&self) -> VertexFn;
+    vertex_mut:as_vertex:vertex(&mut self) -> VertexFnMut;
+
+    edge(&self) -> EdgeFn;
+    edge_mut:as_edge:edge(&mut self) -> EdgeFnMut;
+
+    face(&self) -> Option<FaceFn>;
+    face_mut:as_face:face(&mut self) -> Option<FaceFnMut>;
 );
 
-impl_fn!(
-    struct FaceFn (FaceHandle, Face, faces) {
-        hedge: HalfEdgeFn,
+fn_type!(
+    struct VertexFn;
+    struct VertexFnMut;
 
-        vertices -> FaceVertices,
-        edges -> FaceEdges,
-        faces -> FaceFaces,
-    }
+    handle: VertexHandle;
+    type: Vertex;
+    map: vertices;
+
+    hedge(&self) -> Option<HalfEdgeFn>;
+    hedge_mut:as_hedge:hedge(&mut self) -> Option<HalfEdgeFnMut>;
+
+    fn in_half_edges(&self) -> VertexInHalfEdges;
+    fn in_half_edges_mut(&mut self) -> VertexInHalfEdgesMut;
+
+    fn out_half_edges(&self) -> VertexOutHalfEdges;
+    fn out_half_edges_mut(&mut self) -> VertexOutHalfEdgesMut;
+
+    fn vertices(&self) -> VertexVertex;
+    fn vertices_mut(&mut self) -> VertexVertexMut;
+
+    fn edges(&self) -> VertexEdges;
+    fn edges_mut(&mut self) -> VertexEdgesMut;
+
+    fn faces(&self) -> VertexFaces;
+    fn faces_mut(&mut self) -> VertexFacesMut;
 );
 
-impl_fn!(
-    struct VertexFn (VertexHandle, Vertex, vertices) {
-        hedge: Option<HalfEdgeFn>,
+fn_type!(
+    struct EdgeFn;
+    struct EdgeFnMut;
 
-        in_half_edges -> VertexInHalfEdges,
-        out_half_edges -> VertexOutHalfEdges,
-        edges -> VertexEdges,
-        faces -> VertexFaces,
-        vertices -> VertexVertex,
-    }
+    handle: EdgeHandle;
+    type: Edge;
+    map: edges;
 
+    hedge(&self) -> HalfEdgeFn;
+    hedge_mut:as_hedge:hedge(&mut self) -> HalfEdgeFnMut;
+
+    fn faces(&self) -> EdgeFaces;
+    fn faces_mut(&mut self) -> EdgeFacesMut;
 );
 
-impl_fn!(
-    struct EdgeFn (EdgeHandle, Edge, edges) {
-        hedge: HalfEdgeFn,
+impl<'graph, DataTypes: Data> EdgeFn<'graph, DataTypes> {
+    pub fn vertices(&self) -> [VertexFn<'graph, DataTypes>; 2] {
+        let edge = EdgeFn::new(self.graph, self.handle);
 
-        pub fn vertices(&self) -> [VertexFn<'mesh, DataTypes>; 2]  {
-            let hedge = self.hedge();
-            let pair = hedge.pair();
-            [hedge.vertex(), pair.vertex()]
-        }
+        let hedge = edge.hedge();
+        let pair = hedge.pair();
 
-        faces -> EdgeFaces,
+        [hedge.vertex(), pair.vertex()]
     }
+
+    // @todo figure out how vertices_mut can be implemented soundly
+    // The problem is that the straigt forward way gives out multiple
+    // mutable references to `graph`
+    // We would need a way to limit access to one vertex at the time
+    // pub fn vertices_mut(&self) -> [VertexFnMut<'graph, DataTypes>; 2] {
+    // }
+}
+
+fn_type!(
+    struct FaceFn;
+    struct FaceFnMut;
+
+    handle: FaceHandle;
+    type: Face;
+    map: faces;
+
+    hedge(&self) -> HalfEdgeFn;
+    hedge_mut:as_hedge:hedge(&mut self) -> HalfEdgeFnMut;
+
+    fn vertices(&self) -> FaceVertices;
+    fn vertices_mut(&mut self) -> FaceVerticesMut;
+
+    fn edges(&self) -> FaceEdges;
+    fn edges_mut(&mut self) -> FaceEdgesMut;
+
+    fn faces(&self) -> FaceFaces;
+    fn faces_mut(&mut self) -> FaceFacesMut;
 );
