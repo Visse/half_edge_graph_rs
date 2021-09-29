@@ -22,10 +22,6 @@ macro_rules! create_iterator {
             $($get_fn:tt)+
         }
 
-        fn get_mut($get_mut_handle:ident) {
-            $($get_mut_fn:tt)+
-        }
-
         fn next($next_handle:ident) {
             $($next_fn:tt)+
         }
@@ -150,10 +146,9 @@ macro_rules! create_iterator {
                     self._advance_next();
 
                     #[allow(unused_mut)]
-                    let mut $get_mut_handle = HalfEdgeFnMut::new(self.graph, current);
+                    let mut $get_handle = HalfEdgeFnMut::new(self.graph, current);
 
-                    let value: $out_mut<DataTypes> = {$($get_mut_fn)+};
-                    Some(unsafe {std::mem::transmute(value)})
+                    Some($($get_fn)+)
                 }
                 else {
                     None
@@ -263,10 +258,6 @@ create_iterator!(
         current
     }
 
-    fn get_mut(current) {
-        current
-    }
-
     fn next(current) {
         current.pair().next()
     }
@@ -294,10 +285,6 @@ create_iterator!(
         current
     }
 
-    fn get_mut(current) {
-        current
-    }
-
     fn next(current)  {
         current.next().pair()
     }
@@ -322,11 +309,7 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.vertex()
-    }
-
-    fn get_mut(current) {
-        current.vertex_mut()
+        current.as_vertex()
     }
 
     fn next(current)  {
@@ -353,11 +336,7 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.edge()
-    }
-
-    fn get_mut(current) {
-        current.edge_mut()
+        current.as_edge()
     }
 
     fn next(current)  {
@@ -384,19 +363,15 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.face().unwrap()
-    }
-
-    fn get_mut(current) {
-        current.face_mut().unwrap()
+        current.as_face().unwrap()
     }
 
     fn next(current)  {
-        current.pair().next()
+        current.as_pair().next()
     }
 
     fn valid(current) {
-        current.face().is_some()
+        current.as_face().is_some()
     }
 );
 
@@ -415,11 +390,7 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.face().unwrap()
-    }
-
-    fn get_mut(current) {
-        current.face_mut().unwrap()
+        current.as_face().unwrap()
     }
 
     fn next(current)  {
@@ -446,11 +417,7 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.vertex()
-    }
-
-    fn get_mut(current) {
-        current.vertex_mut()
+        current.as_vertex()
     }
 
     fn next(current)  {
@@ -477,11 +444,7 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.edge()
-    }
-
-    fn get_mut(current) {
-        current.edge_mut()
+        current.as_edge()
     }
 
     fn next(current)  {
@@ -508,10 +471,6 @@ create_iterator!(
     }
 
     fn get(current) {
-        current.pair().face().unwrap()
-    }
-
-    fn get_mut(current) {
         current.as_pair().as_face().unwrap()
     }
 

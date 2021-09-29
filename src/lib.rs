@@ -1,3 +1,73 @@
+#![forbid(unsafe_code)]
+//! Implementation for the Half Edge Graph structure
+//!
+//! # What is a Half Edge Graph?
+//! A Half Edge Graph is a efficent way to represent graphes and have constant time _local_ queries.
+//! It works by splitting each edge into two _half edges_.
+//!
+//! Each half edge contains a pointer to its pair (other half), next & prev pointers,
+//! and pointers to its vertex, edge and optionaly face.
+//!
+//! This structure allows very efficent local queries, eg you can in linear time say what
+//! a given vertex is connected to, what edges it have, any faces it is part of, and more.
+//!
+//! The downside is that it can be quite complex to uphold the invariants that make this possible
+//! especially when faces are getting involved. So its _quite_ (relative) expansive to construct
+//! the graph, but once you have it, it makes it very easy to traverse the graph and do queries fast.
+//!
+//! @todo a image is worth a thousand words here
+//!
+//! # Function Set
+//! Function set are the recomommended way to traverse the graph,
+//! at their core they are a reference to the graph, and a handle for the item.
+//!
+//! They offer a erogonomic interface come in 3 flavors:
+//!  - shared *Fn ([HalfEdgeFn], [VertexFn], [EdgeFn], [FaceFn])
+//!  - mutable *FnMut ([HalfEdgeFnMut], [VertexFnMut], [EdgeFnMut], [FaceFnMut])
+//!  - data *FnData ([HalfEdgeFnData], [VertexFnData], [EdgeFnData], [FaceFnData])
+//!
+//! ## Function Set - Shared
+//! These provide shared access to the graph structure, and is the recommended way to traverse the graph
+//! and gather data.
+//!
+//! They provide a erogonomic way to traverse the graph, ex:
+//!
+//! ```no_run
+//! # let graph = half_edge_graph::HalfEdgeGraph::<()>::default();
+//! # let vertex_handle = half_edge_graph::VertexHandle::default();
+//! let vertex = graph.vertex(vertex_handle).unwrap();
+//! for edge in vertex.edges() {
+//!     // do something with edge - note that edge is a `EdgeFn`
+//! }
+//! ```
+//!
+//! ## Function Set - Mutable
+//! These provide mutable access to the graph, use if you need to modify the graph. You can use them to
+//! traverse the graph, but they are not so erogonomic as the *Fn version, for example if you want to
+//! iterate over all vertices in a face you can't use a regular for loop, instead you have to do:
+//! ```no_run
+//! # let mut graph = half_edge_graph::HalfEdgeGraph::<()>::default();
+//! # let face_handle = half_edge_graph::FaceHandle::default();
+//!  let mut face = graph.face_mut(face_handle).unwrap();
+//!  let mut face_vertices = face.vertices_mut();
+//!  while let Some(vertex) = face_vertices.next() {
+//!     // do something with the vertex
+//!  }
+//! ```
+//! This will probably improve once GAT's & LendingIterator are stabilized.
+//!
+//! ## Function Set - Data
+//! These are only used when you want to iterate over all items mutable in a graph. Ideally I would
+//! like to remove these and use the *FnMut variants instead, but due to implementation details it can't
+//! currently be implemented effeciently.
+//!
+//! Internally the HalfEdgeGraph is using [slotmap::SlotMap] for storage, and in order to implement the iterator
+//! efficently we would need a way to get a handle for a given slot, however this is not currently supported, so
+//! instead it would have to be implemented by first iterating over all handles, collecting them into a vector
+//! and using that vector to create the *FnMut version.
+//!
+//! Instead I choose to implement it using [slotmap::SlotMap::iter_mut], but this makes it unsound to access any
+//! links, and only mutable access to the data can be provided.
 use std::fmt::Debug;
 
 use itertools::Itertools;
@@ -5,7 +75,8 @@ use slotmap::Key;
 
 mod function_set;
 pub use function_set::{
-    EdgeFn, EdgeFnMut, EdgeFnData, FaceFn, FaceFnMut, FaceFnData, HalfEdgeFn, HalfEdgeFnMut, HalfEdgeFnData, VertexFn, VertexFnMut, VertexFnData,
+    EdgeFn, EdgeFnData, EdgeFnMut, FaceFn, FaceFnData, FaceFnMut, HalfEdgeFn, HalfEdgeFnData,
+    HalfEdgeFnMut, VertexFn, VertexFnData, VertexFnMut,
 };
 
 mod iterators;
@@ -417,57 +488,49 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
         }
     }
 
-    pub fn iter_vertices(&self) -> impl Iterator<Item = VertexFn<'_, DataTypes>>
-    {
+    pub fn iter_vertices(&self) -> impl Iterator<Item = VertexFn<'_, DataTypes>> {
         self.vertices
             .keys()
             .map(move |handle| VertexFn::new(self, handle))
     }
 
-    pub fn iter_edges(&self) -> impl Iterator<Item = EdgeFn<DataTypes>>
-    {
+    pub fn iter_edges(&self) -> impl Iterator<Item = EdgeFn<DataTypes>> {
         self.edges
             .keys()
             .map(move |handle| EdgeFn::new(self, handle))
     }
 
-    pub fn iter_faces(&self) -> impl Iterator<Item = FaceFn<'_, DataTypes>>
-    {
+    pub fn iter_faces(&self) -> impl Iterator<Item = FaceFn<'_, DataTypes>> {
         self.faces
             .keys()
             .map(move |handle| FaceFn::new(self, handle))
     }
 
-    pub fn iter_half_edges(&self) -> impl Iterator<Item = HalfEdgeFn<'_, DataTypes>>
-    {
+    pub fn iter_half_edges(&self) -> impl Iterator<Item = HalfEdgeFn<'_, DataTypes>> {
         self.half_edges
             .keys()
             .map(move |handle| HalfEdgeFn::new(self, handle))
     }
 
-    pub fn iter_vertices_mut(&mut self) -> impl Iterator<Item = VertexFnData<'_, DataTypes>>
-    {
+    pub fn iter_vertices_mut(&mut self) -> impl Iterator<Item = VertexFnData<'_, DataTypes>> {
         self.vertices
             .iter_mut()
             .map(|(handle, data)| VertexFnData::new(data, handle))
     }
 
-    pub fn iter_edges_mut(&mut self) -> impl Iterator<Item = EdgeFnData<'_, DataTypes>>
-    {
+    pub fn iter_edges_mut(&mut self) -> impl Iterator<Item = EdgeFnData<'_, DataTypes>> {
         self.edges
             .iter_mut()
             .map(|(handle, data)| EdgeFnData::new(data, handle))
     }
 
-    pub fn iter_faces_mut(&mut self) -> impl Iterator<Item = FaceFnData<DataTypes>>
-    {
+    pub fn iter_faces_mut(&mut self) -> impl Iterator<Item = FaceFnData<DataTypes>> {
         self.faces
             .iter_mut()
             .map(|(handle, data)| FaceFnData::new(data, handle))
     }
 
-    pub fn iter_half_edges_mut(&mut self) -> impl Iterator<Item = HalfEdgeFnData<'_, DataTypes>>
-    {
+    pub fn iter_half_edges_mut(&mut self) -> impl Iterator<Item = HalfEdgeFnData<'_, DataTypes>> {
         self.half_edges
             .iter_mut()
             .map(|(handle, data)| HalfEdgeFnData::new(data, handle))

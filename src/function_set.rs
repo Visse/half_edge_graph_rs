@@ -50,7 +50,7 @@ macro_rules! fn_type {
                 &self.graph.$map.get(self.handle).unwrap()
             }
 
-            fn_type!(__impl_props $name 'graph; $($rest)*);
+            fn_type!(__impl_props $name; $($rest)*);
         }
         fn_type!(__impl_common $name; handle: $handle; type: $type;);
 
@@ -95,7 +95,6 @@ macro_rules! fn_type {
                 self.graph.$map.get_mut(self.handle).unwrap()
             }
 
-            fn_type!(__impl_props $name '_; $($rest)*);
             fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
         }
         fn_type!(__impl_common_mut $name_mut; handle: $handle; type: $type;);
@@ -188,27 +187,45 @@ macro_rules! fn_type {
      **************************/
 
     ( // No more properties
-        __impl_props $name:ident $lifetime:lifetime;
+        __impl_props $name:ident;
     ) => {};
 
     ( // Property
-        __impl_props $name:ident $lifetime:lifetime;
-        $prop:ident(&self) -> $type:ident;
+        __impl_props $name:ident;
+        $(#[$meta:meta])*
+        $prop:ident, $prop_mut:ident, $prop_as:ident -> $type:ident, $type_mut:ident;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> $type<$lifetime, DataTypes> {
+        $(#[$meta])*
+        pub fn $prop(&self) -> $type<'graph, DataTypes> {
             $type::new(self.graph, Self::get(self).$prop)
         }
 
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
+        pub fn $prop_as(&self) -> $type<'graph, DataTypes> {
+            $type::new(self.graph, Self::get(self).$prop)
+        }
+
+        fn_type!(__impl_props $name; $($rest)*);
     };
 
     ( // Optional property
-        __impl_props $name:ident $lifetime:lifetime;
-        $prop:ident(&self) -> Option<$type:ident>;
+        __impl_props $name:ident;
+        $(#[$meta:meta])*
+        $prop:ident, $prop_mut:ident, $prop_as:ident -> Option<$type:ident>, Option<$type_mut:ident>;
         $($rest:tt)*
     ) => {
-        pub fn $prop(&self) -> Option<$type<$lifetime, DataTypes>> {
+        $(#[$meta])*
+        pub fn $prop(&self) -> Option<$type<'graph, DataTypes>> {
+            let prop = Self::get(self).$prop;
+            if prop.is_null() {
+                None
+            }
+            else {
+                Some($type::new(self.graph, prop))
+            }
+        }
+
+        pub fn $prop_as(&self) -> Option<$type<'graph, DataTypes>> {
             let prop = Self::get(self).$prop;
             if prop.is_null() {
                 None
@@ -219,41 +236,31 @@ macro_rules! fn_type {
 
         }
 
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
+        fn_type!(__impl_props $name; $($rest)*);
     };
+
     ( // Function
-        __impl_props $name:ident $lifetime:lifetime;
+        __impl_props $name:ident;
+        $(#[$meta:meta])*
         fn $fun:ident(&self) -> $ret:ident;
         $($rest:tt)*
     ) => {
-        pub fn $fun(&self) -> $ret<$lifetime, DataTypes> {
+        $(#[$meta])*
+        pub fn $fun(&self) -> $ret<'graph, DataTypes> {
             // FIXME
             $ret::new($name::new(self.graph, self.handle))
         }
 
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
+        fn_type!(__impl_props $name; $($rest)*);
     };
 
-    ( // Mutable property -- Ignore (not mutable type)
-        __impl_props $name:ident $lifetime:lifetime;
-        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> $type:ident;
-        $($rest:tt)*
-    ) => {
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
-    };
-    ( // Mutable optional property -- Ignore (not mutable type)
-        __impl_props $name:ident $lifetime:lifetime;
-        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> Option<$type:ident>;
-        $($rest:tt)*
-    ) => {
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
-    };
     ( // Mutable function -- Ignore (not mutable type)
-        __impl_props $name:ident $lifetime:lifetime;
+        __impl_props $name:ident;
+        $(#[$meta:meta])*
         fn $prop:ident(&mut self) -> $ret:ty;
         $($rest:tt)*
     ) => {
-        fn_type!(__impl_props $name $lifetime; $($rest)*);
+        fn_type!(__impl_props $name; $($rest)*);
     };
 
     /**************************
@@ -263,33 +270,25 @@ macro_rules! fn_type {
         __impl_props_mut $name:ident:$name_mut:ident;
     ) => {};
 
-    ( // Property
-        __impl_props_mut $name:ident:$name_mut:ident;
-        $prop:ident(&self) -> $type:ident;
-        $($rest:tt)*
-    ) => {
-        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
-    };
-
-    ( // Optional property
-        __impl_props_mut $name:ident:$name_mut:ident;
-        $prop:ident(&self) -> Option<$type:ident>;
-        $($rest:tt)*
-    ) => {
-        fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
-    };
-
     ( // Mutable property
         __impl_props_mut $name:ident:$name_mut:ident;
-        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> $type:ident;
+        $(#[$meta:meta])*
+        $prop:ident, $prop_mut:ident, $prop_as:ident -> $type:ident, $type_mut:ident;
         $($rest:tt)*
     ) => {
-        pub fn $fun(&mut self) -> $type<'_, DataTypes> {
+        $(#[$meta])*
+        pub fn $prop(&mut self) -> $type<'_, DataTypes> {
             $type::new(self.graph, Self::get(self).$prop)
         }
 
-        pub fn $fun_as(self) -> $type<'graph, DataTypes> {
-            $type::new(self.graph, Self::get(&self).$prop)
+        $(#[$meta])*
+        pub fn $prop_mut(&mut self) -> $type_mut<'_, DataTypes> {
+            $type_mut::new(self.graph, Self::get(self).$prop)
+        }
+
+        $(#[$meta])*
+        pub fn $prop_as(self) -> $type_mut<'graph, DataTypes> {
+            $type_mut::new(self.graph, Self::get(&self).$prop)
         }
 
         fn_type!(__impl_props_mut $name:$name_mut; $($rest)*);
@@ -297,10 +296,12 @@ macro_rules! fn_type {
 
     ( // Mutable optional property
         __impl_props_mut $name:ident:$name_mut:ident;
-        $fun:ident:$fun_as:ident:$prop:ident(&mut self) -> Option<$type:ident>;
+        $(#[$meta:meta])*
+        $prop:ident, $prop_mut:ident, $prop_as:ident -> Option<$type:ident>, Option<$type_mut:ident>;
         $($rest:tt)*
     ) => {
-        pub fn $fun(&mut self) -> Option<$type<'_, DataTypes>> {
+        $(#[$meta])*
+        pub fn $prop(&self) -> Option<$type<'_, DataTypes>> {
             let prop = Self::get(self).$prop;
             if prop.is_null() {
                 None
@@ -310,13 +311,25 @@ macro_rules! fn_type {
             }
         }
 
-        pub fn $fun_as(self) -> Option<$type<'graph, DataTypes>> {
+        $(#[$meta])*
+        pub fn $prop_mut(&mut self) -> Option<$type_mut<'_, DataTypes>> {
+            let prop = Self::get(self).$prop;
+            if prop.is_null() {
+                None
+            }
+            else {
+                Some($type_mut::new(self.graph, prop))
+            }
+        }
+
+        $(#[$meta])*
+        pub fn $prop_as(self) -> Option<$type_mut<'graph, DataTypes>> {
             let prop = Self::get(&self).$prop;
             if prop.is_null() {
                 None
             }
             else {
-                Some($type::new(self.graph, prop))
+                Some($type_mut::new(self.graph, prop))
             }
         }
 
@@ -325,6 +338,7 @@ macro_rules! fn_type {
 
     ( // Function
         __impl_props_mut $name:ident:$name_mut:ident;
+        $(#[$meta:meta])*
         fn $fun:ident(&self) -> $ret:ident;
         $($rest:tt)*
     ) => {
@@ -333,6 +347,7 @@ macro_rules! fn_type {
 
     ( // Mutable function
         __impl_props_mut $name:ident:$name_mut:ident;
+        $(#[$meta:meta])*
         fn $fun:ident(&mut self) -> $ret:ident;
         $($rest:tt)*
     ) => {
@@ -344,31 +359,55 @@ macro_rules! fn_type {
 }
 
 fn_type!(
+    /// Wrapper class for HalfEdgeHandle.
+    /// It provides a simple interface for dealing with interfaces.
+    /// See [*Fn](crate#function-set---shared)
+    ///
+    /// # Example
+    ///```
+    ///    use half_edge_graph::*;
+    ///    /// create dummy graph
+    ///    let mut graph = HalfEdgeGraph::<()>::default();
+    ///    let v1 = graph.new_vertex(());
+    ///    let v2 = graph.new_vertex(());
+    ///    let edge = graph.new_edge(v1, v2, ());
+    ///    // find a half edge between 2 vertices
+    ///    let hedge_handle = graph.find_half_edge(v1, v2).unwrap();
+    ///    let hedge = graph.half_edge(hedge_handle).unwrap();
+    ///    // Walk the graph
+    ///    assert_eq!(hedge.vertex(), v2);
+    ///    assert_eq!(hedge.pair().vertex(), v1);
+    ///```
     struct HalfEdgeFn;
+    /// Mutable wrapper class for HalfEdgeHandle.
+    /// See [HalfEdgeFn], [*FnMut](crate#function-set---mutable)
     struct HalfEdgeFnMut;
+    /// Mutable access to the data portion of a HalfEdgeHandle.
+    /// see [*FnData](crate#function-set---data)
     struct HalfEdgeFnData;
 
     handle: HalfEdgeHandle;
     type: HalfEdge;
     map: half_edges;
 
-    pair(&self) -> HalfEdgeFn;
-    pair_mut:as_pair:pair(&mut self) -> HalfEdgeFnMut;
+    /// Get the pair half edge
+    pair, pair_mut, as_pair -> HalfEdgeFn, HalfEdgeFnMut;
 
-    next(&self) -> HalfEdgeFn;
-    next_mut:as_next:next(&mut self) -> HalfEdgeFnMut;
+    /// Get the next half edge
+    #[allow(clippy::should_implement_trait)]
+    next, next_mut, as_next -> HalfEdgeFn, HalfEdgeFnMut;
 
-    prev(&self) -> HalfEdgeFn;
-    prev_mut:as_prev:prev(&mut self) -> HalfEdgeFnMut;
+    /// Get the previus half edge
+    prev, prev_mut, as_prev -> HalfEdgeFn, HalfEdgeFnMut;
 
-    vertex(&self) -> VertexFn;
-    vertex_mut:as_vertex:vertex(&mut self) -> VertexFnMut;
+    /// Get the vertex of the half edge
+    vertex, vertex_mut, as_vertex -> VertexFn, VertexFnMut;
 
-    edge(&self) -> EdgeFn;
-    edge_mut:as_edge:edge(&mut self) -> EdgeFnMut;
+    /// Get the edge of the half edge
+    edge, edge_mut, as_edge -> EdgeFn, EdgeFnMut;
 
-    face(&self) -> Option<FaceFn>;
-    face_mut:as_face:face(&mut self) -> Option<FaceFnMut>;
+    /// Get the face of the half edge
+    face, face_mut, as_face -> Option<FaceFn>, Option<FaceFnMut>;
 );
 
 fn_type!(
@@ -380,8 +419,7 @@ fn_type!(
     type: Vertex;
     map: vertices;
 
-    hedge(&self) -> Option<HalfEdgeFn>;
-    hedge_mut:as_hedge:hedge(&mut self) -> Option<HalfEdgeFnMut>;
+    hedge, hedge_mut, as_hedge -> Option<HalfEdgeFn>, Option<HalfEdgeFnMut>;
 
     fn in_half_edges(&self) -> VertexInHalfEdges;
     fn in_half_edges_mut(&mut self) -> VertexInHalfEdgesMut;
@@ -408,8 +446,7 @@ fn_type!(
     type: Edge;
     map: edges;
 
-    hedge(&self) -> HalfEdgeFn;
-    hedge_mut:as_hedge:hedge(&mut self) -> HalfEdgeFnMut;
+    hedge, hedge_mut, as_hedge -> HalfEdgeFn, HalfEdgeFnMut;
 
     fn faces(&self) -> EdgeFaces;
     fn faces_mut(&mut self) -> EdgeFacesMut;
@@ -442,8 +479,7 @@ fn_type!(
     type: Face;
     map: faces;
 
-    hedge(&self) -> HalfEdgeFn;
-    hedge_mut:as_hedge:hedge(&mut self) -> HalfEdgeFnMut;
+    hedge, hedge_mut, as_hedge -> HalfEdgeFn, HalfEdgeFnMut;
 
     fn vertices(&self) -> FaceVertices;
     fn vertices_mut(&mut self) -> FaceVerticesMut;
