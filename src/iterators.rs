@@ -1,7 +1,114 @@
 use crate::{
-    Data, EdgeFn, EdgeFnMut, FaceFn, FaceFnMut, HalfEdgeFn, HalfEdgeFnMut, HalfEdgeGraph,
-    HalfEdgeHandle, VertexFn, VertexFnMut,
+    Data, EdgeFn, EdgeFnMut, EdgeHandle, FaceFn, FaceFnMut, FaceHandle, HalfEdgeFn, HalfEdgeFnMut,
+    HalfEdgeGraph, HalfEdgeHandle, VertexFn, VertexFnMut, VertexHandle,
 };
+
+pub struct VerticesMut<'graph, DataTypes: Data> {
+    graph: &'graph mut HalfEdgeGraph<DataTypes>,
+    handles: Vec<VertexHandle>,
+    current: usize,
+}
+
+impl<'graph, DataTypes: Data> VerticesMut<'graph, DataTypes> {
+    pub fn new(graph: &'graph mut HalfEdgeGraph<DataTypes>) -> Self {
+        let handles = graph.vertices.keys().collect();
+        Self {
+            graph,
+            handles,
+            current: 0,
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<VertexFnMut<'_, DataTypes>> {
+        self.current += 1;
+        if let Some(handle) = self.handles.get(self.current - 1).cloned() {
+            Some(VertexFnMut::new(self.graph, handle))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct HalfEdgesMut<'graph, DataTypes: Data> {
+    graph: &'graph mut HalfEdgeGraph<DataTypes>,
+    handles: Vec<HalfEdgeHandle>,
+    current: usize,
+}
+
+impl<'graph, DataTypes: Data> HalfEdgesMut<'graph, DataTypes> {
+    pub fn new(graph: &'graph mut HalfEdgeGraph<DataTypes>) -> Self {
+        let handles = graph.half_edges.keys().collect();
+        Self {
+            graph,
+            handles,
+            current: 0,
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<HalfEdgeFnMut<'_, DataTypes>> {
+        self.current += 1;
+        if let Some(handle) = self.handles.get(self.current - 1).cloned() {
+            Some(HalfEdgeFnMut::new(self.graph, handle))
+        } else {
+            None
+        }
+    }
+}
+pub struct EdgesMut<'graph, DataTypes: Data> {
+    graph: &'graph mut HalfEdgeGraph<DataTypes>,
+    handles: Vec<EdgeHandle>,
+    current: usize,
+}
+
+impl<'graph, DataTypes: Data> EdgesMut<'graph, DataTypes> {
+    pub fn new(graph: &'graph mut HalfEdgeGraph<DataTypes>) -> Self {
+        let handles = graph.edges.keys().collect();
+        Self {
+            graph,
+            handles,
+            current: 0,
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<EdgeFnMut<'_, DataTypes>> {
+        self.current += 1;
+        if let Some(handle) = self.handles.get(self.current - 1).cloned() {
+            Some(EdgeFnMut::new(self.graph, handle))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct FacesMut<'graph, DataTypes: Data> {
+    graph: &'graph mut HalfEdgeGraph<DataTypes>,
+    handles: Vec<FaceHandle>,
+    current: usize,
+}
+
+impl<'graph, DataTypes: Data> FacesMut<'graph, DataTypes> {
+    pub fn new(graph: &'graph mut HalfEdgeGraph<DataTypes>) -> Self {
+        let handles = graph.faces.keys().collect();
+        Self {
+            graph,
+            handles,
+            current: 0,
+        }
+    }
+
+    #[allow(clippy::should_implement_trait)]
+    pub fn next(&mut self) -> Option<FaceFnMut<'_, DataTypes>> {
+        self.current += 1;
+        if let Some(handle) = self.handles.get(self.current - 1).cloned() {
+            Some(FaceFnMut::new(self.graph, handle))
+        } else {
+            None
+        }
+    }
+}
 
 macro_rules! create_iterator {
     (

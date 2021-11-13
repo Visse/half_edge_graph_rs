@@ -14,9 +14,6 @@ macro_rules! fn_type {
         $(#[$meta_mut:meta])*
         struct $name_mut:ident;
 
-        $(#[$meta_data:meta])*
-        struct $name_data:ident;
-
         handle: $handle:ty;
         type: $type:ident;
         map: $map:ident;
@@ -104,36 +101,6 @@ macro_rules! fn_type {
                 Self::new(item.graph, item.handle)
             }
         }
-
-        $(#[$meta_data])*
-        pub struct $name_data<'graph, DataTypes: Data> {
-            pub(crate) data: &'graph mut $type<DataTypes::$type>,
-            pub(crate) handle: $handle,
-        }
-
-        impl<'graph, DataTypes: Data> $name_data<'graph, DataTypes>
-        {
-            pub(crate) fn new(data: &'graph mut $type<DataTypes::$type>, handle: $handle) -> Self {
-                Self {
-                    data,
-                    handle
-                }
-            }
-
-            pub fn handle(&self) -> $handle {
-                self.handle
-            }
-
-            fn get(&self) -> &$type<DataTypes::$type> {
-                self.data
-            }
-
-            fn get_mut(&mut self) -> &mut $type<DataTypes::$type> {
-                self.data
-            }
-        }
-
-        fn_type!(__impl_common_mut $name_data; handle: $handle; type: $type;);
     };
 
     (
@@ -382,9 +349,6 @@ fn_type!(
     /// Mutable wrapper class for HalfEdgeHandle.
     /// See [HalfEdgeFn], [*FnMut](crate#function-set---mutable)
     struct HalfEdgeFnMut;
-    /// Mutable access to the data portion of a HalfEdgeHandle.
-    /// see [*FnData](crate#function-set---data)
-    struct HalfEdgeFnData;
 
     handle: HalfEdgeHandle;
     type: HalfEdge;
@@ -413,7 +377,6 @@ fn_type!(
 fn_type!(
     struct VertexFn;
     struct VertexFnMut;
-    struct VertexFnData;
 
     handle: VertexHandle;
     type: Vertex;
@@ -440,7 +403,6 @@ fn_type!(
 fn_type!(
     struct EdgeFn;
     struct EdgeFnMut;
-    struct EdgeFnData;
 
     handle: EdgeHandle;
     type: Edge;
@@ -473,7 +435,6 @@ impl<'graph, DataTypes: Data> EdgeFn<'graph, DataTypes> {
 fn_type!(
     struct FaceFn;
     struct FaceFnMut;
-    struct FaceFnData;
 
     handle: FaceHandle;
     type: Face;

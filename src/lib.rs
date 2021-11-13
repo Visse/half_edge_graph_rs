@@ -75,15 +75,15 @@ use slotmap::Key;
 
 mod function_set;
 pub use function_set::{
-    EdgeFn, EdgeFnData, EdgeFnMut, FaceFn, FaceFnData, FaceFnMut, HalfEdgeFn, HalfEdgeFnData,
-    HalfEdgeFnMut, VertexFn, VertexFnData, VertexFnMut,
+    EdgeFn, EdgeFnMut, FaceFn, FaceFnMut, HalfEdgeFn, HalfEdgeFnMut, VertexFn, VertexFnMut,
 };
 
 mod iterators;
 pub use iterators::{
-    EdgeFaces, EdgeFacesMut, FaceEdges, FaceEdgesMut, FaceFaces, FaceFacesMut, FaceVertices,
-    FaceVerticesMut, VertexEdges, VertexEdgesMut, VertexFaces, VertexFacesMut, VertexInHalfEdges,
-    VertexInHalfEdgesMut, VertexOutHalfEdges, VertexOutHalfEdgesMut, VertexVertex, VertexVertexMut,
+    EdgeFaces, EdgeFacesMut, EdgesMut, FaceEdges, FaceEdgesMut, FaceFaces, FaceFacesMut,
+    FaceVertices, FaceVerticesMut, FacesMut, HalfEdgesMut, VertexEdges, VertexEdgesMut,
+    VertexFaces, VertexFacesMut, VertexInHalfEdges, VertexInHalfEdgesMut, VertexOutHalfEdges,
+    VertexOutHalfEdgesMut, VertexVertex, VertexVertexMut, VerticesMut,
 };
 
 #[cfg(test)]
@@ -512,28 +512,20 @@ impl<DataTypes: Data> HalfEdgeGraph<DataTypes> {
             .map(move |handle| HalfEdgeFn::new(self, handle))
     }
 
-    pub fn iter_vertices_mut(&mut self) -> impl Iterator<Item = VertexFnData<'_, DataTypes>> {
-        self.vertices
-            .iter_mut()
-            .map(|(handle, data)| VertexFnData::new(data, handle))
+    pub fn iter_vertices_mut(&mut self) -> VerticesMut<'_, DataTypes> {
+        VerticesMut::new(self)
     }
 
-    pub fn iter_edges_mut(&mut self) -> impl Iterator<Item = EdgeFnData<'_, DataTypes>> {
-        self.edges
-            .iter_mut()
-            .map(|(handle, data)| EdgeFnData::new(data, handle))
+    pub fn iter_edges_mut(&mut self) -> EdgesMut<'_, DataTypes> {
+        EdgesMut::new(self)
     }
 
-    pub fn iter_faces_mut(&mut self) -> impl Iterator<Item = FaceFnData<DataTypes>> {
-        self.faces
-            .iter_mut()
-            .map(|(handle, data)| FaceFnData::new(data, handle))
+    pub fn iter_faces_mut(&mut self) -> FacesMut<'_, DataTypes> {
+        FacesMut::new(self)
     }
 
-    pub fn iter_half_edges_mut(&mut self) -> impl Iterator<Item = HalfEdgeFnData<'_, DataTypes>> {
-        self.half_edges
-            .iter_mut()
-            .map(|(handle, data)| HalfEdgeFnData::new(data, handle))
+    pub fn iter_half_edges_mut(&mut self) -> HalfEdgesMut<'_, DataTypes> {
+        HalfEdgesMut::new(self)
     }
 }
 
